@@ -291,11 +291,15 @@ if __name__ == "__main__":
     all_data.extend(search_and_extract(driver, "massage therapist near Connecticut, USA", allowed_cities_ct))
     all_data.extend(search_and_extract(driver, "acupuncturist near Connecticut, USA", allowed_cities_ct))
     all_data.extend(search_and_extract(driver, "neuropathology near Connecticut, USA", allowed_cities_ct))
+    all_data.extend(search_and_extract(driver, "alternative medicine near Connecticut, USA", allowed_cities_ct))
+    all_data.extend(search_and_extract(driver, "physical therapist near Connecticut, USA", allowed_cities_ct))
 
     all_data.extend(search_and_extract(driver, "chiropractor near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "massage therapist near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "acupuncturist near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "neuropathology near Westchester County, New York, USA", allowed_cities_westchester))
+    all_data.extend(search_and_extract(driver, "alternative medicine near Westchester County, New York, USA", allowed_cities_westchester))
+    all_data.extend(search_and_extract(driver, "physical therapist near Westchester County, New York, USA", allowed_cities_westchester))
 
     driver.quit()
 
