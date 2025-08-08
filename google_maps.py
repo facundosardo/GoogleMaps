@@ -14,9 +14,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# ---------- Utilities ----------
+# ---------- Utilities ---------- 
 
-def pause(minimum=0.5, maximum=1.5):
+def pause(minimum=0.2, maximum=0.6):
     time.sleep(random.uniform(minimum, maximum))
 
 def log(msg):
@@ -91,7 +91,7 @@ def start_driver():
 
     driver.get('https://www.google.com/maps')
     log("Page loaded")
-    pause(1, 2.5)
+    pause(0.5, 1.5)
 
     try:
         buttons = driver.find_elements(By.TAG_NAME, "button")
@@ -100,7 +100,7 @@ def start_driver():
             if "accept" in text or "agree" in text:
                 btn.click()
                 log("Cookies button clicked")
-                pause(0.5, 1.5)
+                pause(0.3, 1.0)
                 break
     except Exception:
         warn("Cookies button not found or not clickable")
@@ -121,7 +121,7 @@ def search_and_extract(driver, query, allowed_cities):
         return []
 
     search_box.clear()
-    pause(0.3, 0.8)
+    pause(0.2, 0.4)
     search_box.send_keys(query)
     search_box.send_keys(Keys.ENTER)
 
@@ -159,7 +159,7 @@ def search_and_extract(driver, query, allowed_cities):
         except:
             break
 
-        pause(0.4, 0.7)
+        pause(0.3, 0.5)
 
         results = driver.find_elements(By.CSS_SELECTOR, 'div.Nv2PK.tH5CWc.THOPZb')
         current_count = len(results)
@@ -184,14 +184,14 @@ def search_and_extract(driver, query, allowed_cities):
                 continue
 
             driver.execute_script("arguments[0].scrollIntoView(true);", res)
-            pause(0.5, 1.2)
+            pause(0.3, 0.6)
             res.click()
-            pause(1.2, 2.0)
+            pause(0.8, 1.4)
 
             name = address = web = phone = ""
 
             try:
-                name = WebDriverWait(driver, 4).until(
+                name = WebDriverWait(driver, 3).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, 'h1.DUwDvf.lfPIob'))
                 ).text
             except:
@@ -229,7 +229,7 @@ def search_and_extract(driver, query, allowed_cities):
                 "Web": web
             })
 
-            pause(0.5, 1.0)
+            pause(0.3, 0.7)
 
         except Exception as e:
             err(f"Error in result {i+1}: {e}")
@@ -255,9 +255,8 @@ def save_data(data):
         df_new[col] = df_new[col].apply(format_title)
     df_new["City"] = df_new["City"].apply(format_city)
 
-    df_general["Name"] = df_general["Name"].apply(format_title)
-    df_general["Address"] = df_general["Address"].apply(format_title)
-    df_general["City"] = df_general["City"].apply(format_city)
+    df_general[["Name", "Address", "City"]] = df_general[["Name", "Address", "City"]].applymap(str)
+    df_new[["Name", "Address", "City"]] = df_new[["Name", "Address", "City"]].applymap(str)
 
     df_new.drop_duplicates(inplace=True)
     df_general.drop_duplicates(inplace=True)
