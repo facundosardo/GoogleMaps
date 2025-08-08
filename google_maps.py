@@ -281,7 +281,7 @@ def save_data(data):
     log(f"New records: {len(df_new_unique)}")
     log(f"Total in general DB: {len(df_general_updated)}")
 
-# ---------- Main ----------
+# ---------- Main ---------- 
 
 if __name__ == "__main__":
     driver = start_driver()
