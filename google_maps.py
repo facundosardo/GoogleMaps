@@ -16,7 +16,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 # ---------- Utilities ----------
 
-def pause(minimum=0.2, maximum=0.6):
+def pause(minimum=0.15, maximum=0.35):
     time.sleep(random.uniform(minimum, maximum))
 
 def log(msg):
@@ -27,11 +27,6 @@ def warn(msg):
 
 def err(msg):
     print(f"[ERROR] {msg}")
-
-def clean_text(text):
-    if isinstance(text, str):
-        return text.strip()
-    return ""
 
 def format_title(text):
     if isinstance(text, str):
@@ -72,14 +67,20 @@ allowed_cities_westchester = {
 }
 
 allowed_cities_litchfield = {
-    'bantam', 'barkhamsted', 'bethlehem', 'bridgewater', 'canaan', 'colebrook',
-    'cornwall', 'goshen', 'harwinton', 'kent', 'litchfield', 'morris',
-    'new hartford', 'new milford', 'norfolk', 'north canaan', 'plymouth',
+    'bantam', 'barkhamsted', 'bethlehem', 'bethlehem village', 'bridgewater',
+    'canaan', 'falls village', 'colebrook', 'cornwall', 'cornwall bridge',
+    'west cornwall', 'goshen', 'harwinton', 'northwest harwinton', 'kent',
+    'south kent', 'litchfield', 'east litchfield', 'northfield', 'morris',
+    'new hartford', 'new hartford center', 'pine meadow', 'new milford',
+    'gaylordsville', 'merryall', 'chimney point', 'new milford cdp',
+    'northville', 'norfolk', 'north canaan', 'plymouth', 'east plymouth',
     'roxbury', 'salisbury', 'sharon', 'thomaston', 'torrington', 'warren',
     'washington', 'watertown', 'winchester', 'woodbury'
 }
 
-# Manhattan acepta todo, así que no filtramos ciudad.
+allowed_cities_manhattan = {
+    'manhattan', 'new york'
+}
 
 # ---------- Driver Initialization ----------
 
@@ -101,7 +102,7 @@ def start_driver():
 
     driver.get('https://www.google.com/maps')
     log("Page loaded")
-    pause(0.5, 1.5)
+    pause()
 
     try:
         buttons = driver.find_elements(By.TAG_NAME, "button")
@@ -110,7 +111,7 @@ def start_driver():
             if "accept" in text or "agree" in text:
                 btn.click()
                 log("Cookies button clicked")
-                pause(0.3, 1.0)
+                pause()
                 break
     except Exception:
         warn("Cookies button not found or not clickable")
@@ -119,8 +120,8 @@ def start_driver():
 
 # ---------- Search and Extract ----------
 
-def search_and_extract(driver, query, allowed_cities=None):
-    log(f"Searching: {query}")
+def search_and_extract(driver, query, allowed_cities):
+    log(f"Starting scroll for: {query}")
 
     try:
         search_box = WebDriverWait(driver, 15).until(
@@ -131,57 +132,73 @@ def search_and_extract(driver, query, allowed_cities=None):
         return []
 
     search_box.clear()
-    pause(0.2, 0.4)
+    pause()
     search_box.send_keys(query)
     search_box.send_keys(Keys.ENTER)
 
-    try:
-        panel = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, 'div[role="feed"]'))
-        )
-    except:
+    selectors = [
+        'div[role="feed"]',
+        'div[role="main"] div[aria-label]',
+        'div[aria-label="Search results"]',
+        'div.section-layout.section-scrollbox.scrollable-y.scrollable-show'
+    ]
+
+    panel_selector = None
+    for selector in selectors:
+        try:
+            panel_candidate = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, selector))
+            )
+            if panel_candidate:
+                panel_selector = selector
+                log(f"Result panel found: {selector}")
+                break
+        except:
+            continue
+
+    if panel_selector is None:
         err("No result panel found")
         return []
 
-    # Scroll
     prev_count = 0
     same_count_retries = 0
     max_retries = 15
+
     while True:
-        driver.execute_script('arguments[0].scrollBy(0, 1000);', panel)
-        pause(0.25, 0.4)
+        try:
+            panel = driver.find_element(By.CSS_SELECTOR, panel_selector)
+            driver.execute_script('arguments[0].scrollBy(0, 1000);', panel)
+        except:
+            break
+
+        pause()
+
         results = driver.find_elements(By.CSS_SELECTOR, 'div.Nv2PK.tH5CWc.THOPZb')
         current_count = len(results)
+        log(f"Results loaded: {current_count}")
+
         if current_count == prev_count:
             same_count_retries += 1
         else:
             same_count_retries = 0
+
         if same_count_retries >= max_retries:
+            log("No more results loaded. Ending scroll.")
             break
+
         prev_count = current_count
 
-    log(f"Total found: {len(results)}")
     new_data = []
 
-    for i in range(len(results)):
+    for i, res in enumerate(results):
         try:
-            # Re-localizar para evitar stale element
-            results = driver.find_elements(By.CSS_SELECTOR, 'div.Nv2PK.tH5CWc.THOPZb')
-            if i >= len(results):
-                break
-            res = results[i]
+            if "active" in res.get_attribute("class"):
+                continue
 
             driver.execute_script("arguments[0].scrollIntoView(true);", res)
-            pause(0.25, 0.45)
-
-            try:
-                res.click()
-            except:
-                # Retry una vez si falla el click
-                pause(0.3, 0.5)
-                res.click()
-
-            pause(0.6, 1.0)
+            pause()
+            res.click()
+            pause()
 
             name = address = web = phone = ""
 
@@ -209,14 +226,10 @@ def search_and_extract(driver, query, allowed_cities=None):
             except:
                 phone = ""
 
-            # Filtrado
-            if allowed_cities:
-                city = extract_city(address, allowed_cities)
-                if city not in allowed_cities:
-                    warn(f"City not allowed '{city}', skipping result {i+1}")
-                    continue
-            else:
-                city = ""  # Para Manhattan no filtramos
+            city = extract_city(address, allowed_cities)
+
+            if city not in allowed_cities:
+                continue
 
             new_data.append({
                 "Name": format_title(name),
@@ -226,9 +239,12 @@ def search_and_extract(driver, query, allowed_cities=None):
                 "Web": web
             })
 
-        except Exception as e:
-            err(f"Error on result {i+1}: {e}")
+            pause()
 
+        except Exception as e:
+            err(f"Error in result {i+1}: {e}")
+
+    log(f"Processed: {len(results)}, Filtered: {len(new_data)})")
     return new_data
 
 # ---------- Save CSV ----------
@@ -244,15 +260,21 @@ def save_data(data):
         df_general = pd.DataFrame(columns=["Name", "Address", "City", "Phone Number", "Web"])
 
     df_new = pd.DataFrame(data)
+
     for col in ["Name", "Address"]:
         df_new[col] = df_new[col].apply(format_title)
     df_new["City"] = df_new["City"].apply(format_city)
 
-    df_general.drop_duplicates(inplace=True)
+    df_general[["Name", "Address", "City"]] = df_general[["Name", "Address", "City"]].astype(str)
+    df_new[["Name", "Address", "City"]] = df_new[["Name", "Address", "City"]].astype(str)
+
     df_new.drop_duplicates(inplace=True)
+    df_general.drop_duplicates(inplace=True)
+
     df_new_unique = df_new[~df_new.apply(tuple, axis=1).isin(df_general.apply(tuple, axis=1))]
 
-    df_general_updated = pd.concat([df_general, df_new_unique], ignore_index=True).drop_duplicates()
+    df_general_updated = pd.concat([df_general, df_new_unique], ignore_index=True)
+    df_general_updated.drop_duplicates(inplace=True)
 
     if len(df_general_updated) > 10000:
         df_general_updated = df_general_updated.tail(10000)
@@ -260,15 +282,15 @@ def save_data(data):
     df_general_updated.to_csv(general_file, index=False, encoding='utf-8-sig')
     df_new_unique.to_csv(new_file, index=False, encoding='utf-8-sig')
 
-    log(f"New: {len(df_new_unique)}, Total: {len(df_general_updated)}")
+    log(f"New records: {len(df_new_unique)}")
+    log(f"Total in general DB: {len(df_general_updated)}")
 
-# ---------- Main ----------
+# ---------- Main ---------- 
 
 if __name__ == "__main__":
     driver = start_driver()
 
     all_data = []
-    # CT
     all_data.extend(search_and_extract(driver, "chiropractor near Connecticut, USA", allowed_cities_ct))
     all_data.extend(search_and_extract(driver, "massage therapist near Connecticut, USA", allowed_cities_ct))
     all_data.extend(search_and_extract(driver, "acupuncturist near Connecticut, USA", allowed_cities_ct))
@@ -276,7 +298,6 @@ if __name__ == "__main__":
     all_data.extend(search_and_extract(driver, "alternative medicine near Connecticut, USA", allowed_cities_ct))
     all_data.extend(search_and_extract(driver, "physical therapist near Connecticut, USA", allowed_cities_ct))
 
-    # Westchester
     all_data.extend(search_and_extract(driver, "chiropractor near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "massage therapist near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "acupuncturist near Westchester County, New York, USA", allowed_cities_westchester))
@@ -284,7 +305,6 @@ if __name__ == "__main__":
     all_data.extend(search_and_extract(driver, "alternative medicine near Westchester County, New York, USA", allowed_cities_westchester))
     all_data.extend(search_and_extract(driver, "physical therapist near Westchester County, New York, USA", allowed_cities_westchester))
 
-    # Litchfield
     all_data.extend(search_and_extract(driver, "chiropractor near Litchfield County, Connecticut, USA", allowed_cities_litchfield))
     all_data.extend(search_and_extract(driver, "massage therapist near Litchfield County, Connecticut, USA", allowed_cities_litchfield))
     all_data.extend(search_and_extract(driver, "acupuncturist near Litchfield County, Connecticut, USA", allowed_cities_litchfield))
@@ -292,21 +312,21 @@ if __name__ == "__main__":
     all_data.extend(search_and_extract(driver, "alternative medicine near Litchfield County, Connecticut, USA", allowed_cities_litchfield))
     all_data.extend(search_and_extract(driver, "physical therapist near Litchfield County, Connecticut, USA", allowed_cities_litchfield))
 
-    # Manhattan (no filtramos)
-    all_data.extend(search_and_extract(driver, "chiropractor near Manhattan, New York, USA"))
-    all_data.extend(search_and_extract(driver, "massage therapist near Manhattan, New York, USA"))
-    all_data.extend(search_and_extract(driver, "acupuncturist near Manhattan, New York, USA"))
-    all_data.extend(search_and_extract(driver, "neuropathology near Manhattan, New York, USA"))
-    all_data.extend(search_and_extract(driver, "alternative medicine near Manhattan, New York, USA"))
-    all_data.extend(search_and_extract(driver, "physical therapist near Manhattan, New York, USA"))
+    all_data.extend(search_and_extract(driver, "chiropractor near Manhattan, New York, USA", allowed_cities_manhattan))
+    all_data.extend(search_and_extract(driver, "massage therapist near Manhattan, New York, USA", allowed_cities_manhattan))
+    all_data.extend(search_and_extract(driver, "acupuncturist near Manhattan, New York, USA", allowed_cities_manhattan))
+    all_data.extend(search_and_extract(driver, "neuropathology near Manhattan, New York, USA", allowed_cities_manhattan))
+    all_data.extend(search_and_extract(driver, "alternative medicine near Manhattan, New York, USA", allowed_cities_manhattan))
+    all_data.extend(search_and_extract(driver, "physical therapist near Manhattan, New York, USA", allowed_cities_manhattan))
 
     driver.quit()
 
     if all_data:
         save_data(all_data)
     else:
-        warn("No data extracted.")
+        warn("No data was extracted from any search.")
 
-    log("RUN COMPLETE ✅")
-    with open("run_complete.txt", "w") as f:
-        f.write(f"OK {datetime.now().isoformat()}\n")
+    # ✅ Final completion log
+    print(f"\nRUN COMPLETE ✅ | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    
+# Note: The above code is designed to scrape Google Maps for specific types of healthcare providers in specified regions.
