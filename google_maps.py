@@ -14,7 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# ---------- Utilities ----------
+# ---------- Utilities ---------- 
 
 def pause(minimum=0.15, maximum=0.35):
     time.sleep(random.uniform(minimum, maximum))
@@ -328,5 +328,5 @@ if __name__ == "__main__":
 
     # ✅ Final completion log
     print(f"\nRUN COMPLETE ✅ | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    
+
 # Note: The above code is designed to scrape Google Maps for specific types of healthcare providers in specified regions.
