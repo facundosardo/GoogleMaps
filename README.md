@@ -1,56 +1,50 @@
-# Google Maps Scraper
+# Google Maps Healthcare Scraper
 
-This Python script extracts professional data from Google Maps using Selenium.
+Python script to extract healthcare professional data from **Google Maps** using Selenium.
 
 ## 🔍 What it does
 
-It searches for specific professionals in allowed cities in Connecticut and Westchester County, NY, and extracts:
+Searches for specific healthcare professions in **Connecticut**, **Westchester County (NY)**, **Litchfield County (CT)**, and **Manhattan (NY)**, extracting:
 
 - **Name**
 - **Address**
-- **City**
+- **City** (filtered by allowed city lists)
 - **Phone Number**
 - **Website**
 
-It then formats the data (capitalizing name, address, city), removes duplicates, and saves it into:
+The script formats the data (capitalizing Name, Address, City), removes duplicates, and saves it into:
 
-- `data_general.csv` → Full database with all professionals
-- `data_new.csv` → Only new entries found in the current session
-- `data_general_backup.csv` → Backup of the general database before the update
+- `data_general.csv` → Full database with all professionals (last 10,000 entries max)
+- `data_new.csv` → Only new entries from the current session
+- `data_general_backup.csv` → Backup of the general database before update
+
+At the end, it prints:  
+`RUN COMPLETE ✅ | <timestamp>`
 
 ## 🚀 How to run
 
-1. Make sure Python 3.11+ and Chrome are installed.
+1. Make sure Python 3.11+ and Google Chrome are installed.
 2. Install required packages:
-
-   ```bash
    pip install -r requirements.txt
-   ```
-
 3. Run the script:
-
-   ```bash
    python google_maps.py
-   ```
 
-> The script uses `webdriver-manager` to auto-download the correct ChromeDriver and handles cookie popups automatically.
+> Uses `webdriver-manager` to auto-download the correct ChromeDriver and handles cookie popups automatically.
 
 ## 📁 Files
 
-- `google_maps.py`: Main scraper script
-- `data_general.csv`: Full dataset (no duplicates)
-- `data_new.csv`: Newly scraped entries from the current run
-- `data_general_backup.csv`: Backup copy of the general CSV before the latest update
+- `google_maps.py`: Main scraper script  
+- `data_general.csv`: Full deduplicated dataset  
+- `data_new.csv`: New entries from this run  
+- `data_general_backup.csv`: Auto-backup before update  
 
 ## ✅ Features
 
-- Google Maps scraper using Selenium
-- Handles cookie popups automatically
-- Scrolls and loads all results
-- Filters only allowed cities
-- Removes duplicates across all outputs
-- Capitalizes all text fields (Name, Address, City)
-- CSV auto-backup before updating
+- Works with multiple regions and allowed city filters  
+- Scrolls and loads all Google Maps results  
+- Uniform, fast execution speed across all searches  
+- Automatic deduplication and CSV backup  
+- Capitalizes text fields for consistency  
 
 ---
 
